@@ -15,11 +15,11 @@ module ActiveRecord
           sp_executesql(sql, name, binds, prepare: prepare)
         end
 
-        def exec_insert(sql, name = nil, binds = [], pk = nil, _sequence_name = nil)
+        def exec_insert(sql, name = nil, binds = [], pk = nil, sequence_name = nil)
           if id_insert_table_name = exec_insert_requires_identity?(sql, pk, binds)
-            with_identity_insert_enabled(id_insert_table_name) { super(sql, name, binds, pk) }
+            with_identity_insert_enabled(id_insert_table_name) { super(sql, name, binds, pk, sequence_name) }
           else
-            super(sql, name, binds, pk)
+            super(sql, name, binds, pk, sequence_name)
           end
         end
 
@@ -223,7 +223,7 @@ module ActiveRecord
 
         protected
 
-        def sql_for_insert(sql, pk, sequence_name, binds)
+        def sql_for_insert(sql, pk, binds)
           if pk.nil?
             table_name = query_requires_identity_insert?(sql)
             pk = primary_key(table_name)
