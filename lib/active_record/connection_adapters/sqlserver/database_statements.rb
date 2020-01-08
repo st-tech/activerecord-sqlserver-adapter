@@ -15,11 +15,11 @@ module ActiveRecord
           sp_executesql(sql, name, binds, prepare: prepare)
         end
 
-        def exec_insert(sql, name = nil, binds = [], pk = nil, _sequence_name = nil)
+        def exec_insert(sql, name = nil, binds = [], pk = nil, sequence_name = nil)
           if id_insert_table_name = exec_insert_requires_identity?(sql, pk, binds)
-            with_identity_insert_enabled(id_insert_table_name) { super(sql, name, binds, pk) }
+            with_identity_insert_enabled(id_insert_table_name) { super(sql, name, binds, pk, sequence_name) }
           else
-            super(sql, name, binds, pk)
+            super(sql, name, binds, pk, sequence_name)
           end
         end
 
@@ -71,9 +71,11 @@ module ActiveRecord
         def release_savepoint(name = current_savepoint_name)
         end
 
-        def case_sensitive_comparison(table, attribute, column, value)
+        def case_sensitive_comparison(attribute, value)
+          column = column_for_attribute(attribute)
+
           if column.collation && !column.case_sensitive?
-            table[attribute].eq(Arel::Nodes::Bin.new(value))
+            attribute.eq(Arel::Nodes::Bin.new(value))
           else
             super
           end
@@ -221,7 +223,7 @@ module ActiveRecord
 
         protected
 
-        def sql_for_insert(sql, pk, id_value, sequence_name, binds)
+        def sql_for_insert(sql, pk, binds)
           if pk.nil?
             table_name = query_requires_identity_insert?(sql)
             pk = primary_key(table_name)
@@ -232,7 +234,7 @@ module ActiveRecord
                   exclude_output_inserted = exclude_output_inserted_table_name?(table_name, sql)
                   if exclude_output_inserted
                     id_sql_type = exclude_output_inserted.is_a?(TrueClass) ? 'bigint' : exclude_output_inserted
-                    <<-SQL.strip_heredoc
+                    <<~SQL.squish
                       DECLARE @ssaIdInsertTable table (#{quoted_pk} #{id_sql_type});
                       #{sql.dup.insert sql.index(/ (DEFAULT )?VALUES/), " OUTPUT INSERTED.#{quoted_pk} INTO @ssaIdInsertTable"}
                       SELECT CAST(#{quoted_pk} AS #{id_sql_type}) FROM @ssaIdInsertTable
