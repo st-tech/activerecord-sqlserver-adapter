@@ -321,18 +321,18 @@ module ActiveRecord
         m.register_type              'timestamp',         SQLServer::Type::Timestamp.new
       end
 
-      def translate_exception(e, message)
+      def translate_exception(exception, message:, sql:, binds:)
         case message
         when /(cannot insert duplicate key .* with unique index) | (violation of unique key constraint)/i
-          RecordNotUnique.new(message)
+          RecordNotUnique.new(message, sql: sql, binds: binds)
         when /conflicted with the foreign key constraint/i
-          InvalidForeignKey.new(message)
+          InvalidForeignKey.new(message, sql: sql, binds: binds)
         when /has been chosen as the deadlock victim/i
-          DeadlockVictim.new(message)
+          DeadlockVictim.new(message, sql: sql, binds: binds)
         when /database .* does not exist/i
-          NoDatabaseError.new(message)
+          NoDatabaseError.new(message, sql: sql, binds: binds)
         when /data would be truncated/
-          ValueTooLong.new(message)
+          ValueTooLong.new(message, sql: sql, binds: binds)
         when /Column '(.*)' is not the same data type as referencing column '(.*)' in foreign key/
           pk_id, fk_id = SQLServer::Utils.extract_identifiers($1), SQLServer::Utils.extract_identifiers($2)
           MismatchedForeignKey.new(
@@ -344,9 +344,9 @@ module ActiveRecord
             primary_key: pk_id.object
           )
         when /Cannot insert the value NULL into column.*does not allow nulls/
-          NotNullViolation.new(message)
+          NotNullViolation.new(message, sql: sql, binds: binds)
         when /Arithmetic overflow error/
-          RangeError.new(message)
+          RangeError.new(message, sql: sql, binds: binds)
         else
           super
         end
